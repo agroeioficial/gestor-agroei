@@ -28,3 +28,6 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Gestor AgroEI Architecture
+- Replace the localStorage demonstration with authenticated Lovable Cloud persistence and server-validated permissions before exposing employee, financial, or partner data; browser-selected roles are presentation-only and must never grant access.

@@ -1,1 +1,1 @@
-{"name":"Gestor AgroEI","short_name":"AgroEI","description":"Gestão integrada da AgroEI","start_url":"/","scope":"/","display":"standalone","background_color":"#f6f8f5","theme_color":"#1c5938","icons":[{"src":"/favicon.ico","sizes":"any","type":"image/x-icon"}]}
+{"name":"Gestor AgroEI","short_name":"AgroEI","description":"Gestão integrada da AgroEI","start_url":"/","scope":"/","display":"standalone","background_color":"#000000","theme_color":"#000000","icons":[{"src":"/branding/icon-agroei.webp","sizes":"64x64","type":"image/webp","purpose":"any maskable"}]}

@@ -17,7 +17,7 @@ Transformar a interface demonstrativa num sistema operacional da AgroEI, com ace
 - Drive e Sheets: conta central da empresa, não contas individuais.
 - INSS do funcionário: 3% do salário-base; contribuição patronal: 4%; total 7%.
 - Férias pela Lei moçambicana n.º 13/2023: 12 dias no primeiro ano de trabalho efectivo e 30 dias nos anos seguintes.
-- Senha de folhas no Drive indicada: “Deusebom”. Acesso a documentos continua restrito por pessoa; senha de planilha não substitui a autorização.
+- Acesso a folhas e documentos será restrito por permissões do Drive e da aplicação. O pedido de proteção por senha será validado na integração: permissões de ficheiro não devem depender de uma senha partilhada nem de uma senha guardada no código.
 - Indemnização: tratar cada caso por iniciativa, motivo e tipo de contrato, com aprovação/revisão jurídica onde a lei ou o enquadramento forem ambíguos.
 - Sem e-mail de lembrete após cinco horas.
 - E-mails enviados pelo aplicativo dependem de domínio real da empresa; nenhum domínio está configurado.

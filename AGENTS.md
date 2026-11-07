@@ -31,3 +31,4 @@ use the editor.
 
 ## Gestor AgroEI Architecture
 - Replace the localStorage demonstration with authenticated Lovable Cloud persistence and server-validated permissions before exposing employee, financial, or partner data; browser-selected roles are presentation-only and must never grant access.
+- Keep the public root as the sign-in/access gate; all private records and files must be protected by database/storage policies, not only by hidden interface controls.

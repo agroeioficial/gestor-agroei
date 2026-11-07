@@ -124,6 +124,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_agroei_file: {
+        Args: { _name: string; _operation: string }
+        Returns: boolean
+      }
+      can_read_agroei_profile: {
+        Args: { _target_user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -140,6 +148,7 @@ export type Database = {
         | "finance"
         | "marketing"
         | "employee"
+        | "administrative"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -274,6 +283,7 @@ export const Constants = {
         "finance",
         "marketing",
         "employee",
+        "administrative",
       ],
     },
   },

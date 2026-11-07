@@ -8,6 +8,13 @@
       "when": 1794070631925,
       "tag": "0000_secure_agroei_accounts_and_private_files",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794070728226,
+      "tag": "0001_restrict_first_partner_registration",
+      "breakpoints": true
     }
   ]
 }

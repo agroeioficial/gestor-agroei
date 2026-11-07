@@ -75,7 +75,7 @@ export const Route = createFileRoute("/")({
   component: AgroEiAuthPortal,
 });
 
-function AgroEiAuthPortal() {
+export function AgroEiAuthPortal() {
   const queryClient = useQueryClient();
   const [user, setUser] = useState<Awaited<ReturnType<typeof supabase.auth.getUser>>["data"]["user"]>(null);
   const [loading, setLoading] = useState(true);

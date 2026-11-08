@@ -56,6 +56,9 @@ export type Database = {
           employee_signature: string | null
           employer_inss: number
           gross_pay: number
+          hr_signature: string | null
+          hr_signed_at: string | null
+          hr_signed_by: string | null
           id: string
           net_pay: number
           paid_at: string | null
@@ -77,6 +80,9 @@ export type Database = {
           employee_signature?: string | null
           employer_inss: number
           gross_pay: number
+          hr_signature?: string | null
+          hr_signed_at?: string | null
+          hr_signed_by?: string | null
           id?: string
           net_pay: number
           paid_at?: string | null
@@ -98,6 +104,9 @@ export type Database = {
           employee_signature?: string | null
           employer_inss?: number
           gross_pay?: number
+          hr_signature?: string | null
+          hr_signed_at?: string | null
+          hr_signed_by?: string | null
           id?: string
           net_pay?: number
           paid_at?: string | null

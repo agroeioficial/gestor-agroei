@@ -43,6 +43,13 @@
       "when": 1794121883466,
       "tag": "0005_secure_payroll_workflow_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794121930242,
+      "tag": "0006_strengthen_payroll_signing_and_transitions",
+      "breakpoints": true
     }
   ]
 }

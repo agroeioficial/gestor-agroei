@@ -131,6 +131,7 @@ export type Database = {
           created_by: string
           id: string
           paid_at: string | null
+          payment_proof_path: string | null
           period_month: number
           period_year: number
           processed_at: string | null
@@ -143,6 +144,7 @@ export type Database = {
           created_by: string
           id?: string
           paid_at?: string | null
+          payment_proof_path?: string | null
           period_month: number
           period_year: number
           processed_at?: string | null
@@ -155,6 +157,7 @@ export type Database = {
           created_by?: string
           id?: string
           paid_at?: string | null
+          payment_proof_path?: string | null
           period_month?: number
           period_year?: number
           processed_at?: string | null

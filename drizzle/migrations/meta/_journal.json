@@ -36,6 +36,13 @@
       "when": 1794121831822,
       "tag": "0004_add_secure_payroll_records",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794121883466,
+      "tag": "0005_secure_payroll_workflow_rules",
+      "breakpoints": true
     }
   ]
 }

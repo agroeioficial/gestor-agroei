@@ -124,13 +124,6 @@ export function AgroEiWorkspace({ userId, fullName, roles }: Props) {
     if (runs.some((run) => run.period_month === period.month && run.period_year === period.year)) {
       setError("Já existe uma folha para esse mês. Não é possível duplicar o período."); return;
     }
-    setBusy(true); setError(""); setNotice("");
-    const now = new Date().toISOString();
-    const { data: run, error: runError } = await supabase.from("payroll_runs").insert({
-      period_month: period.month, period_year: period.year, scheduled_payment_date: scheduledPaymentDate(period.year, period.month),
-      created_by: userId, processed_at: now,
-    }).select("id").single();
-    if (runError || !run) { setError("Não foi possível criar a folha. Confirme as permissões e o período selecionado."); setBusy(false); return; }
     const payrollRows = included.map((person) => {
       const draft = drafts[person.user_id];
       if (!draft) return null;
@@ -138,26 +131,43 @@ export function AgroEiWorkspace({ userId, fullName, roles }: Props) {
       const bonus = Number(draft.bonus || 0);
       const position = Number(draft.position || 0);
       const absences = Number(draft.absences || 0);
-      if (![base, bonus, position, absences].every(Number.isFinite) || base < 0 || bonus < 0 || position < 0 || absences < 0 || absences > 30) return null;
+      if (![base, bonus, position, absences].every(Number.isFinite) || base <= 0 || bonus < 0 || position < 0 || absences < 0 || absences > 30) return null;
       const computed = calculatePayroll(base, bonus, position, absences);
       return {
-        payroll_run_id: run.id, employee_id: person.user_id, period_month: period.month, period_year: period.year,
-        base_salary: base, bonus_amount: bonus, position_compensation: position, unexcused_absence_days: absences,
-        employee_inss: computed.employeeInss, employer_inss: computed.employerInss,
-        absence_deduction: computed.absenceDeduction, gross_pay: computed.grossPay, net_pay: computed.netPay,
-        hr_signature: signature.trim(), hr_signed_by: userId, hr_signed_at: now,
+        payroll_run_id: "",
+        employee_id: person.user_id,
+        period_month: period.month,
+        period_year: period.year,
+        base_salary: base,
+        bonus_amount: bonus,
+        position_compensation: position,
+        unexcused_absence_days: absences,
+        employee_inss: computed.employeeInss,
+        employer_inss: computed.employerInss,
+        absence_deduction: computed.absenceDeduction,
+        gross_pay: computed.grossPay,
+        net_pay: computed.netPay,
+        hr_signature: signature.trim(),
+        hr_signed_by: userId,
+        hr_signed_at: new Date().toISOString(),
       };
     });
     if (payrollRows.some((row) => row === null)) {
       setError("Revise os salários: valores devem ser positivos e as faltas não podem exceder 30 dias.");
-      await supabase.from("payroll_runs").delete().eq("id", run.id);
-      setBusy(false); return;
+      return;
     }
-    const validPayrollRows = payrollRows.filter((row): row is NonNullable<typeof row> => row !== null);
+    setBusy(true); setError(""); setNotice("");
+    const now = new Date().toISOString();
+    const { data: run, error: runError } = await supabase.from("payroll_runs").insert({
+      period_month: period.month, period_year: period.year, scheduled_payment_date: scheduledPaymentDate(period.year, period.month),
+      created_by: userId, processed_at: now,
+    }).select("id").single();
+    if (runError || !run) { setError("Não foi possível criar a folha. Confirme as permissões e o período selecionado."); setBusy(false); return; }
+    const validPayrollRows = payrollRows.filter((row): row is NonNullable<typeof row> => row !== null).map((row) => ({ ...row, payroll_run_id: run.id }));
     const { error: itemError } = await supabase.from("payroll_items").insert(validPayrollRows);
     if (itemError) {
       setError("A folha não pôde ser concluída; confirme os valores e tente novamente.");
-      await supabase.from("payroll_runs").delete().eq("id", run.id);
+      setNotice("O rascunho foi preservado para não perder os dados; corrija a folha ou peça a um Sócio para a remover.");
     } else {
       setNotice("Folha criada e assinada pelo RH. Reveja os valores antes de enviar às Finanças.");
       await refresh();

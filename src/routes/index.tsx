@@ -4,10 +4,10 @@ import { AgroEiAuthPortal } from "@/lib/agroei-auth-portal";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Acesso e Perfil | Gestor AgroEI" },
-      { name: "description", content: "Acesso seguro e perfil pessoal no sistema de gestão da AgroEI." },
-      { property: "og:title", content: "Acesso e Perfil | Gestor AgroEI" },
-      { property: "og:description", content: "Acesse o sistema de gestão da AgroEI com sua conta autorizada." },
+      { title: "Gestor AgroEI | Painéis e Folha Salarial" },
+      { name: "description", content: "Área de trabalho AgroEI com painéis por função e processamento salarial protegido." },
+      { property: "og:title", content: "Gestor AgroEI | Painéis e Folha Salarial" },
+      { property: "og:description", content: "Acesso autorizado aos painéis e à folha salarial do Gestor AgroEI." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

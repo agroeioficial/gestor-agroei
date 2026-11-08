@@ -74,7 +74,7 @@ export function AgroEiWorkspace({ userId, fullName, roles }: Props) {
 
   async function refresh() {
     setError("");
-    const requests: Promise<unknown>[] = [];
+    const requests: PromiseLike<unknown>[] = [];
     if (canViewPayroll) {
       requests.push(Promise.all([
         supabase.from("payroll_runs").select("*").order("created_at", { ascending: false }),
@@ -133,6 +133,7 @@ export function AgroEiWorkspace({ userId, fullName, roles }: Props) {
     if (runError || !run) { setError("Não foi possível criar a folha. Confirme as permissões e o período selecionado."); setBusy(false); return; }
     const payrollRows = included.map((person) => {
       const draft = drafts[person.user_id];
+      if (!draft) return null;
       const base = Number(draft.base);
       const bonus = Number(draft.bonus || 0);
       const position = Number(draft.position || 0);
@@ -142,7 +143,9 @@ export function AgroEiWorkspace({ userId, fullName, roles }: Props) {
       return {
         payroll_run_id: run.id, employee_id: person.user_id, period_month: period.month, period_year: period.year,
         base_salary: base, bonus_amount: bonus, position_compensation: position, unexcused_absence_days: absences,
-        ...computed, hr_signature: signature.trim(), hr_signed_by: userId, hr_signed_at: now,
+        employee_inss: computed.employeeInss, employer_inss: computed.employerInss,
+        absence_deduction: computed.absenceDeduction, gross_pay: computed.grossPay, net_pay: computed.netPay,
+        hr_signature: signature.trim(), hr_signed_by: userId, hr_signed_at: now,
       };
     });
     if (payrollRows.some((row) => row === null)) {
@@ -150,7 +153,8 @@ export function AgroEiWorkspace({ userId, fullName, roles }: Props) {
       await supabase.from("payroll_runs").delete().eq("id", run.id);
       setBusy(false); return;
     }
-    const { error: itemError } = await supabase.from("payroll_items").insert(payrollRows);
+    const validPayrollRows = payrollRows.filter((row): row is NonNullable<typeof row> => row !== null);
+    const { error: itemError } = await supabase.from("payroll_items").insert(validPayrollRows);
     if (itemError) {
       setError("A folha não pôde ser concluída; confirme os valores e tente novamente.");
       await supabase.from("payroll_runs").delete().eq("id", run.id);

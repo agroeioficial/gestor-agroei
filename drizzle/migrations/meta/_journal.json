@@ -29,6 +29,13 @@
       "when": 1794070844250,
       "tag": "0003_tighten_agroei_access_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794121831822,
+      "tag": "0004_add_secure_payroll_records",
+      "breakpoints": true
     }
   ]
 }

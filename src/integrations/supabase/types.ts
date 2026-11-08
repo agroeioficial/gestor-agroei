@@ -44,6 +44,126 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_items: {
+        Row: {
+          absence_deduction: number
+          base_salary: number
+          bonus_amount: number
+          created_at: string
+          employee_confirmed_at: string | null
+          employee_id: string
+          employee_inss: number
+          employee_signature: string | null
+          employer_inss: number
+          gross_pay: number
+          id: string
+          net_pay: number
+          paid_at: string | null
+          payment_status: string
+          payroll_run_id: string
+          period_month: number
+          period_year: number
+          position_compensation: number
+          unexcused_absence_days: number
+        }
+        Insert: {
+          absence_deduction: number
+          base_salary: number
+          bonus_amount?: number
+          created_at?: string
+          employee_confirmed_at?: string | null
+          employee_id: string
+          employee_inss: number
+          employee_signature?: string | null
+          employer_inss: number
+          gross_pay: number
+          id?: string
+          net_pay: number
+          paid_at?: string | null
+          payment_status?: string
+          payroll_run_id: string
+          period_month: number
+          period_year: number
+          position_compensation?: number
+          unexcused_absence_days?: number
+        }
+        Update: {
+          absence_deduction?: number
+          base_salary?: number
+          bonus_amount?: number
+          created_at?: string
+          employee_confirmed_at?: string | null
+          employee_id?: string
+          employee_inss?: number
+          employee_signature?: string | null
+          employer_inss?: number
+          gross_pay?: number
+          id?: string
+          net_pay?: number
+          paid_at?: string | null
+          payment_status?: string
+          payroll_run_id?: string
+          period_month?: number
+          period_year?: number
+          position_compensation?: number
+          unexcused_absence_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_items_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payroll_items_payroll_run_id_fkey"
+            columns: ["payroll_run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_runs: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          paid_at: string | null
+          period_month: number
+          period_year: number
+          processed_at: string | null
+          scheduled_payment_date: string
+          sent_to_finance_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          paid_at?: string | null
+          period_month: number
+          period_year: number
+          processed_at?: string | null
+          scheduled_payment_date: string
+          sent_to_finance_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          paid_at?: string | null
+          period_month?: number
+          period_year?: number
+          processed_at?: string | null
+          scheduled_payment_date?: string
+          sent_to_finance_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           birth_date: string | null

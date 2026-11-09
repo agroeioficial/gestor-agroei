@@ -310,7 +310,7 @@ export function AgroEiAuthPortal() {
                 <div><p className="text-sm font-medium text-primary">Conta verificada</p><h2 className="mt-1 text-2xl font-semibold">O seu perfil</h2><p className="mt-1 text-sm text-muted-foreground">{user.email}</p></div>
                 <Button type="button" variant="outline" size="sm" onClick={signOut}><LogOut size={15}/> Sair</Button>
               </header>
-              {roles.length > 0 && <AgroEiWorkspace userId={user.id} fullName={profile?.full_name ?? profileForm.full_name} roles={roles}/ >}
+              {roles.length > 0 && <AgroEiWorkspace userId={user.id} fullName={profile?.full_name ?? profileForm.full_name} roles={roles} />}
               {roles.length > 0 ? <div className="flex flex-wrap gap-2">{roles.map((role) => <span key={role} className="inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-3 py-1.5 text-sm text-primary"><BadgeCheck size={15}/>{roleLabels[role]}</span>)}</div> : <p className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">O acesso está confirmado. A sua função será atribuída por um Sócio ou Gerente autorizado.</p>}
               {profileLoading ? <p className="text-sm text-muted-foreground">A carregar o perfil…</p> : <form onSubmit={saveProfile} className="space-y-5">
                 <div className="flex items-center gap-2"><FileText size={17} className="text-primary"/><h3 className="font-semibold">Dados pessoais</h3></div>

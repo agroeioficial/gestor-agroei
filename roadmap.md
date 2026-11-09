@@ -1,5 +1,6 @@
 # Gestor AgroEI — roadmap
 
+- [ ] Etapa atual — Sincronizar folhas salariais com uma planilha dedicada no Google Sheets, gerar PDF individual depois da confirmação do funcionário e validar o fluxo com contas reais de RH, Finanças e Funcionário. A ligação do Sheets está ativa; as contas desses três perfis ainda não existem, então a validação real depende da sua criação e atribuição de permissões. IRPS e indemnizações permanecem bloqueados até confirmação das regras.
 - [ ] Fase 0 — Confirmar regras legais e operacionais ainda pendentes, incluindo tabela oficial de IRPS, regime de salários, reservas/dividendos, aprovações societárias e exceções legais. Primeiro Sócio identificado para bootstrap; estratégia de adesão de funcionários e confirmação de primeiro acesso ainda por fechar.
 - [ ] Fase 1 — Substituir demonstração por base segura: Lovable Cloud, autenticação, perfis completos, cargos/funções separados, permissões de servidor, auditoria e armazenamento privado. Em curso: esquema de perfis e papéis restritos, bucket privado e entrada sem seletor de identidade; nenhuma conta privilegiada será concedida antes da confirmação de e-mail.
 - [ ] Fase 2 — Implementar experiência real por função: painéis individuais e prévias de folha salarial em curso; tarefas, aprovações, perfis de sócios e funcionários, gestão societária e projetos continuam pendentes.

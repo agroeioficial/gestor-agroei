@@ -71,8 +71,8 @@ export async function createPayslipPdf(details: PayslipDetails): Promise<Uint8Ar
     ["Bónus", money(Number(details.bonus_amount)), false],
     ["Remuneração de cargo", money(Number(details.position_compensation)), false],
     ["Salário bruto", money(Number(details.gross_pay)), true],
-    ["INSS do funcionário", `− ${money(Number(details.employee_inss))}`, false],
-    [`Faltas injustificadas (${Number(details.unexcused_absence_days)} dias)`, `− ${money(Number(details.absence_deduction))}`, false],
+    ["INSS do funcionário", `- ${money(Number(details.employee_inss))}`, false],
+    [`Faltas injustificadas (${Number(details.unexcused_absence_days)} dias)`, `- ${money(Number(details.absence_deduction))}`, false],
     ["Salário líquido recebido", money(Number(details.net_pay)), true],
   ];
 

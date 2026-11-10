@@ -64,17 +64,15 @@ export function planPayrollSheetWrites(
 
     const existing = existingRowsByItemId.get(item.id);
     const employeeName = namesByEmployeeId.get(item.employee_id) ?? existing?.employeeName ?? "";
-    if (!employeeName && !existing) {
-      throw new Error("Não foi possível identificar o funcionário desta folha.");
+    if (!existing && !canAppend) {
+      throw new Error("A folha ainda não existe na planilha. Peça ao RH para sincronizá-la.");
     }
-
+    if (!employeeName) throw new Error("Não foi possível identificar o funcionário desta folha.");
     const values = payrollItemToSheetRow(item, run, employeeName);
     if (existing) {
       updates.push({ rowNumber: existing.rowNumber, values });
     } else if (canAppend) {
       appends.push(values);
-    } else {
-      throw new Error("A folha ainda não existe na planilha. Peça ao RH para sincronizá-la.");
     }
   }
 

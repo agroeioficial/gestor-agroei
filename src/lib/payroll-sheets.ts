@@ -13,6 +13,8 @@ export type PayrollSheetPlan = {
   appends: string[][];
 };
 
+export type ExistingPayrollSheetRow = { rowNumber: number; employeeName: string };
+
 const SHEET_WIDTH = 21;
 
 export function payrollItemToSheetRow(
@@ -48,15 +50,10 @@ export function payrollItemToSheetRow(
 export function planPayrollSheetWrites(
   items: PayrollItemRow[],
   run: Pick<PayrollRunRow, "scheduled_payment_date">,
-  existingItemIds: string[],
+  existingRowsByItemId: ReadonlyMap<string, ExistingPayrollSheetRow>,
   namesByEmployeeId: ReadonlyMap<string, string>,
   canAppend: boolean,
 ): PayrollSheetPlan {
-  const rowByItemId = new Map<string, { rowNumber: number; values: string[] }>();
-  existingItemIds.forEach((itemId, index) => {
-    if (itemId) rowByItemId.set(itemId, { rowNumber: index + 3, values: [] });
-  });
-
   const updates: PayrollSheetWrite[] = [];
   const appends: string[][] = [];
   const seenIds = new Set<string>();
@@ -65,15 +62,15 @@ export function planPayrollSheetWrites(
     if (seenIds.has(item.id)) continue;
     seenIds.add(item.id);
 
-    const existing = rowByItemId.get(item.id);
-    const employeeName = namesByEmployeeId.get(item.employee_id) ?? "";
+    const existing = existingRowsByItemId.get(item.id);
+    const employeeName = namesByEmployeeId.get(item.employee_id) ?? existing?.employeeName ?? "";
     if (!employeeName && !existing) {
       throw new Error("Não foi possível identificar o funcionário desta folha.");
     }
 
     const values = payrollItemToSheetRow(item, run, employeeName);
     if (existing) {
-      updates.push({ rowNumber: existing.rowNumber, values: values.slice(5) });
+      updates.push({ rowNumber: existing.rowNumber, values });
     } else if (canAppend) {
       appends.push(values);
     } else {

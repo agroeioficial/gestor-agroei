@@ -4,7 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import { createPayslipPdf } from "@/lib/payroll-payslip";
-import { padPayrollSheetRow, planPayrollSheetWrites } from "@/lib/payroll-sheets";
+import { padPayrollSheetRow, payrollSheetHeaders, payrollSheetTitleRow, planPayrollSheetWrites } from "@/lib/payroll-sheets";
 
 const SHEETS_API = "https://connector-gateway.lovable.dev/google_sheets/v4";
 const PAYROLL_SPREADSHEET_ID = "1n1kknheTFX1RtEa57m_nuaBU5qZI3f6y22FkyykpUGw";
@@ -84,7 +84,7 @@ async function syncRunToSheets(supabase: AuthenticatedSupabase, userId: string, 
   }
 
   const data = plan.updates.map(({ rowNumber, values }) => ({
-    range: `Folhas!F${rowNumber}:U${rowNumber}`,
+    range: `Folhas!A${rowNumber}:U${rowNumber}`,
     majorDimension: "ROWS",
     values: [padPayrollSheetRow(values)],
   }));
@@ -92,6 +92,12 @@ async function syncRunToSheets(supabase: AuthenticatedSupabase, userId: string, 
     await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!A:U:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, "POST", {
       majorDimension: "ROWS",
       values: plan.appends.map(padPayrollSheetRow),
+    });
+  }
+  if (!existingItemIds.length && !plan.appends.length) {
+    await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!A1:U2?valueInputOption=RAW`, "PUT", {
+      majorDimension: "ROWS",
+      values: [payrollSheetTitleRow(), payrollSheetHeaders()],
     });
   }
   if (data.length) {

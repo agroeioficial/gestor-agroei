@@ -36,12 +36,12 @@ describe("payroll sheet synchronization planning", () => {
     const plan = planPayrollSheetWrites([item("item-1")], run, [], new Map([["employee-1", "Funcionário de Teste"]]), true);
     expect(plan.appends).toHaveLength(1);
     expect(padPayrollSheetRow(plan.appends[0] ?? [])).toHaveLength(21);
-    expect(plan.appends[0]).toMatchObject?.;
+    expect(plan.appends[0]?.[4]).toBe("item-1");
+    expect(plan.appends[0]?.[13]).toBe("10116.67");
   });
 
   it("updates an existing row instead of appending a second copy", () => {
-    const existing = ["Gestor AgroEI", "11/2026", "2026", "Funcionário de Teste", "item-1", "draft"];
-    const plan = planPayrollSheetWrites([item("item-1")], run, [existing], new Map(), false);
+    const plan = planPayrollSheetWrites([item("item-1")], run, ["item-1"], new Map(), false);
     expect(plan.updates).toHaveLength(1);
     expect(plan.updates[0]?.rowNumber).toBe(3);
     expect(plan.appends).toHaveLength(0);

@@ -13,7 +13,6 @@ export type PayrollSheetPlan = {
   appends: string[][];
 };
 
-const EMPLOYEE_ID_COLUMN = 4;
 const SHEET_WIDTH = 21;
 
 export function payrollItemToSheetRow(
@@ -109,6 +108,10 @@ export function payrollSheetHeaders(): string[] {
     "Assinatura do funcionário",
     "Data da confirmação",
   ];
+}
+
+export function payrollSheetTitleRow(): string[] {
+  return ["Gestor AgroEI — Folha de Salário", ...Array.from({ length: SHEET_WIDTH - 1 }, () => "")];
 }
 
 export function padPayrollSheetRow(values: string[]): string[] {

@@ -26,6 +26,7 @@ function item(id: string, employeeId = "employee-1"): PayrollItemRow {
     employee_signature: "Funcionário de Teste",
     employee_confirmed_at: "2026-11-20T10:00:00.000Z",
     hr_signature: "RH de Teste",
+    hr_signed_by: "hr-test-user",
     hr_signed_at: "2026-11-15T10:00:00.000Z",
     created_at: "2026-11-15T10:00:00.000Z",
   };

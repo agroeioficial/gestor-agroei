@@ -33,7 +33,7 @@ function item(id: string, employeeId = "employee-1"): PayrollItemRow {
 
 describe("payroll sheet synchronization planning", () => {
   it("creates one complete spreadsheet row with the exact payroll fields", () => {
-    const plan = planPayrollSheetWrites([item("item-1")], run, [], new Map([["employee-1", "Funcionário de Teste"]]), true);
+    const plan = planPayrollSheetWrites([item("item-1")], run, new Map(), new Map([["employee-1", "Funcionário de Teste"]]), true);
     expect(plan.appends).toHaveLength(1);
     expect(padPayrollSheetRow(plan.appends[0] ?? [])).toHaveLength(21);
     expect(plan.appends[0]?.[4]).toBe("item-1");
@@ -41,7 +41,7 @@ describe("payroll sheet synchronization planning", () => {
   });
 
   it("updates an existing row instead of appending a second copy", () => {
-    const plan = planPayrollSheetWrites([item("item-1")], run, ["item-1"], new Map(), false);
+    const plan = planPayrollSheetWrites([item("item-1")], run, new Map([["item-1", { rowNumber: 3, employeeName: "Funcionário de Teste" }]]), new Map(), false);
     expect(plan.updates).toHaveLength(1);
     expect(plan.updates[0]?.rowNumber).toBe(3);
     expect(plan.appends).toHaveLength(0);
@@ -49,12 +49,12 @@ describe("payroll sheet synchronization planning", () => {
   });
 
   it("does not append an unrecognized salary row for finance-only or employee accounts", () => {
-    expect(() => planPayrollSheetWrites([item("new-item")], run, [], new Map(), false))
+    expect(() => planPayrollSheetWrites([item("new-item")], run, new Map(), new Map(), false))
       .toThrow("A folha ainda não existe na planilha. Peça ao RH para sincronizá-la.");
   });
 
   it("deduplicates repeated records in one sync operation", () => {
-    const plan = planPayrollSheetWrites([item("item-1"), item("item-1")], run, [], new Map([["employee-1", "Teste"]]), true);
+    const plan = planPayrollSheetWrites([item("item-1"), item("item-1")], run, new Map(), new Map([["employee-1", "Teste"]]), true);
     expect(plan.appends).toHaveLength(1);
   });
 });

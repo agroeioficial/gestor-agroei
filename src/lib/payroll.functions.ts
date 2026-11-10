@@ -64,8 +64,12 @@ async function syncRunToSheets(supabase: AuthenticatedSupabase, userId: string, 
     return { ok: false as const, message: "Finanças só pode sincronizar folhas já enviadas para pagamento." };
   }
 
-  const { values: rawIds } = await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!E3:E`, "GET") as { values?: string[][] };
-  const existingItemIds = (rawIds ?? []).map((row) => row[0] ?? "");
+  const { values: rawRows } = await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!A3:U`, "GET") as { values?: string[][] };
+  const existingRowsByItemId = new Map<string, { rowNumber: number; employeeName: string }>();
+  (rawRows ?? []).forEach((row, index) => {
+    const itemId = row[4];
+    if (itemId) existingRowsByItemId.set(itemId, { rowNumber: index + 3, employeeName: row[3] ?? "" });
+  });
   const names = new Map<string, string>();
 
   if (partner || hr) {
@@ -78,7 +82,7 @@ async function syncRunToSheets(supabase: AuthenticatedSupabase, userId: string, 
 
   let plan;
   try {
-    plan = planPayrollSheetWrites(items, run, existingItemIds, names, partner || hr);
+    plan = planPayrollSheetWrites(items, run, existingRowsByItemId, names, partner || hr);
   } catch (error) {
     return { ok: false as const, message: error instanceof Error ? error.message : "Não foi possível preparar a sincronização." };
   }
@@ -94,7 +98,7 @@ async function syncRunToSheets(supabase: AuthenticatedSupabase, userId: string, 
       values: plan.appends.map(padPayrollSheetRow),
     });
   }
-  if (!existingItemIds.length && !plan.appends.length) {
+  if (!existingRowsByItemId.size && !plan.appends.length) {
     await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!A1:U2?valueInputOption=RAW`, "PUT", {
       majorDimension: "ROWS",
       values: [payrollSheetTitleRow(), payrollSheetHeaders()],
@@ -140,8 +144,8 @@ export const syncEmployeeConfirmationToSheets = createServerFn({ method: "POST" 
     }
 
     try {
-      const { values: rawIds } = await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!E3:E`, "GET") as { values?: string[][] };
-      const rowOffset = (rawIds ?? []).findIndex((row) => row[0] === item.id);
+      const { values: rawRows } = await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!A3:U`, "GET") as { values?: string[][] };
+      const rowOffset = (rawRows ?? []).findIndex((row) => row[4] === item.id);
       if (rowOffset < 0) return { ok: false as const, message: "O RH ainda não sincronizou esta folha com a planilha." };
       const rowNumber = rowOffset + 3;
       await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!T${rowNumber}:U${rowNumber}?valueInputOption=RAW`, "PUT", {

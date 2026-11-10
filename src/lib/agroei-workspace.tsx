@@ -174,7 +174,10 @@ export function AgroEiWorkspace({ userId, fullName, roles }: Props) {
       setError("A folha não pôde ser concluída; confirme os valores e tente novamente.");
       setNotice("O rascunho foi preservado para não perder os dados; corrija a folha ou peça a um Sócio para a remover.");
     } else {
-      setNotice("Folha criada e assinada pelo RH. Reveja os valores antes de enviar às Finanças.");
+      const sheetResult = await syncRun({ data: { runId: run.id } });
+      setNotice(sheetResult.ok
+        ? "Folha criada, assinada pelo RH e sincronizada com o Google Sheets. Reveja os valores antes de enviar às Finanças."
+        : `Folha criada e assinada pelo RH, mas a planilha não foi atualizada: ${sheetResult.message}`);
       await refresh();
     }
     setBusy(false);
@@ -184,7 +187,11 @@ export function AgroEiWorkspace({ userId, fullName, roles }: Props) {
     setBusy(true); setError("");
     const { error: updateError } = await supabase.from("payroll_runs").update({ status: "sent_to_finance", sent_to_finance_at: new Date().toISOString() }).eq("id", run.id);
     if (updateError) setError("A folha precisa de pelo menos uma assinatura válida do RH para seguir às Finanças.");
-    else { setNotice("Folha enviada às Finanças."); await refresh(); }
+    else {
+      const sheetResult = await syncRun({ data: { runId: run.id } });
+      setNotice(sheetResult.ok ? "Folha enviada às Finanças e sincronizada com o Google Sheets." : `Folha enviada às Finanças, mas a planilha não foi atualizada: ${sheetResult.message}`);
+      await refresh();
+    }
     setBusy(false);
   }
 
@@ -206,7 +213,11 @@ export function AgroEiWorkspace({ userId, fullName, roles }: Props) {
     if (uploadError) { setError("Não foi possível guardar o comprovativo com acesso restrito."); setBusy(false); return; }
     const { error: updateError } = await supabase.from("payroll_runs").update({ status: "paid", paid_at: new Date().toISOString(), payment_proof_path: path }).eq("id", run.id);
     if (updateError) setError("O comprovativo foi guardado, mas o pagamento não foi confirmado.");
-    else { setNotice("Pagamento registado. As folhas pessoais já estão disponíveis para a equipa."); await refresh(); }
+    else {
+      const sheetResult = await syncRun({ data: { runId: run.id } });
+      setNotice(sheetResult.ok ? "Pagamento registado, planilha atualizada e folhas pessoais disponíveis para a equipa." : `Pagamento registado; a planilha não foi atualizada: ${sheetResult.message}`);
+      await refresh();
+    }
     setBusy(false);
   }
 

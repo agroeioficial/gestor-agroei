@@ -144,7 +144,7 @@ export const syncEmployeeConfirmationToSheets = createServerFn({ method: "POST" 
     }
 
     try {
-      const { values: rawRows } = await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!A3:U`, "GET") as { values?: string[][] };
+  const { values: rawRows } = await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!A3:U`, "GET") as { values?: string[][] };
       const rowOffset = (rawRows ?? []).findIndex((row) => row[4] === item.id);
       if (rowOffset < 0) return { ok: false as const, message: "O RH ainda não sincronizou esta folha com a planilha." };
       const rowNumber = rowOffset + 3;

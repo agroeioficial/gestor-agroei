@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, Banknote, BriefcaseBusiness, CalendarDays, CircleAlert, FileCheck2, LayoutDashboard, LockKeyhole, ReceiptText, RefreshCw, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { calculatePayroll, scheduledPaymentDate } from "@/lib/payroll-calculation";
+import { downloadConfirmedPayslip, syncEmployeeConfirmationToSheets, syncPayrollToSheets } from "@/lib/payroll.functions";
 
 type Role = "partner" | "manager" | "hr" | "finance" | "administrative" | "marketing" | "employee";
 type Staff = { user_id: string; full_name: string | null; email: string | null };
@@ -48,6 +50,9 @@ const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
 const money = new Intl.NumberFormat("pt-MZ", { style: "currency", currency: "MZN", maximumFractionDigits: 2 });
 
 export function AgroEiWorkspace({ userId, fullName, roles }: Props) {
+  const syncRun = useServerFn(syncPayrollToSheets);
+  const syncConfirmation = useServerFn(syncEmployeeConfirmationToSheets);
+  const downloadPayslip = useServerFn(downloadConfirmedPayslip);
   const [view, setView] = useState<"overview" | "payroll">("overview");
   const [staff, setStaff] = useState<Staff[]>([]);
   const [runs, setRuns] = useState<PayrollRun[]>([]);
@@ -183,6 +188,14 @@ export function AgroEiWorkspace({ userId, fullName, roles }: Props) {
     setBusy(false);
   }
 
+  async function synchronizeRun(run: PayrollRun) {
+    setBusy(true); setError(""); setNotice("");
+    const result = await syncRun({ data: { runId: run.id } });
+    if (!result.ok) setError(result.message);
+    else { setNotice(`Planilha atualizada: ${result.added} registo(s) novo(s), ${result.updated} atualizado(s).`); await refresh(); }
+    setBusy(false);
+  }
+
   async function payPayroll(run: PayrollRun) {
     const file = proofs[run.id];
     if (!file) { setError("Carregue o comprovativo antes de confirmar o pagamento."); return; }
@@ -202,16 +215,27 @@ export function AgroEiWorkspace({ userId, fullName, roles }: Props) {
     setBusy(true); setError("");
     const { error: confirmError } = await supabase.from("payroll_items").update({ employee_signature: signature.trim(), employee_confirmed_at: new Date().toISOString() }).eq("id", item.id);
     if (confirmError) setError("A confirmação não foi guardada. Verifique se essa folha já foi confirmada.");
-    else { setNotice("Recebimento confirmado e registado na sua folha."); await refresh(); }
+    else {
+      const sheetResult = await syncConfirmation({ data: { itemId: item.id } });
+      setNotice(sheetResult.ok ? "Recebimento confirmado e registado na sua folha e na planilha." : `Recebimento confirmado. ${sheetResult.message}`);
+      await refresh();
+    }
     setBusy(false);
   }
 
   async function printPayslip(item: PayrollItem) {
-    const { data, error: downloadError } = await supabase.storage.from("agroei-private-records").download(`payslips/${item.employee_id}/${item.period_year}-${String(item.period_month).padStart(2, "0")}.pdf`);
-    if (downloadError || !data) { setError("O PDF desta folha ainda não foi disponibilizado. O registo de pagamento está disponível nesta página."); return; }
-    const url = URL.createObjectURL(data);
+    setBusy(true); setError("");
+    try {
+      const result = await downloadPayslip({ data: { itemId: item.id } });
+      const binary = atob(result.pdfBase64);
+      const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+      const data = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(data);
     const link = document.createElement("a"); link.href = url; link.download = `folha-${item.period_year}-${String(item.period_month).padStart(2, "0")}.pdf`; link.click();
-    URL.revokeObjectURL(url);
+      URL.revokeObjectURL(url);
+    } catch {
+      setError("Não foi possível gerar a sua folha. Confirme que o pagamento e a sua assinatura estão registados.");
+    } finally { setBusy(false); }
   }
 
   const outstandingRuns = runs.filter((run) => run.status === "sent_to_finance");
@@ -253,7 +277,7 @@ export function AgroEiWorkspace({ userId, fullName, roles }: Props) {
           staff={staff} runs={runs} items={items} drafts={drafts} setDrafts={setDrafts}
           period={period} setPeriod={setPeriod} signature={signature} setSignature={setSignature}
           proofs={proofs} setProofs={setProofs} busy={busy} onCreate={createPayroll}
-          onSubmit={submitToFinance} onPay={payPayroll} onConfirm={confirmReceipt} onPrint={printPayslip}
+          onSubmit={submitToFinance} onPay={payPayroll} onConfirm={confirmReceipt} onPrint={printPayslip} onSync={synchronizeRun}
           runEmployees={runEmployees}
         />
       )}
@@ -265,13 +289,13 @@ function Metric({ icon, title, value, note }: { icon: React.ReactNode; title: st
   return <article className="border-l-2 border-primary/40 pl-4 py-2"><div className="flex items-center gap-2 text-sm text-muted-foreground">{icon}{title}</div><p className="mt-2 text-xl font-semibold">{value}</p><p className="mt-1 text-xs text-muted-foreground">{note}</p></article>;
 }
 
-function PayrollWorkspace({ canManagePayroll, financeRole, employeeRole, staff, runs, items, drafts, setDrafts, period, setPeriod, signature, setSignature, proofs, setProofs, busy, onCreate, onSubmit, onPay, onConfirm, onPrint, runEmployees }: {
+function PayrollWorkspace({ canManagePayroll, financeRole, employeeRole, staff, runs, items, drafts, setDrafts, period, setPeriod, signature, setSignature, proofs, setProofs, busy, onCreate, onSubmit, onPay, onConfirm, onPrint, onSync, runEmployees }: {
   canManagePayroll: boolean; financeRole: boolean; employeeRole: boolean; staff: Staff[]; runs: PayrollRun[]; items: PayrollItem[];
   drafts: Record<string, DraftStaff>; setDrafts: React.Dispatch<React.SetStateAction<Record<string, DraftStaff>>>;
   period: { month: number; year: number }; setPeriod: React.Dispatch<React.SetStateAction<{ month: number; year: number }>>;
   signature: string; setSignature: (value: string) => void; proofs: Record<string, File | null>; setProofs: React.Dispatch<React.SetStateAction<Record<string, File | null>>>;
   busy: boolean; onCreate: (event: React.FormEvent<HTMLFormElement>) => void; onSubmit: (run: PayrollRun) => void; onPay: (run: PayrollRun) => void;
-  onConfirm: (item: PayrollItem) => void; onPrint: (item: PayrollItem) => void; runEmployees: (runId: string) => PayrollItem[];
+  onConfirm: (item: PayrollItem) => void; onPrint: (item: PayrollItem) => void; onSync: (run: PayrollRun) => void; runEmployees: (runId: string) => PayrollItem[];
 }) {
   return <div className="space-y-7">
     {canManagePayroll && <form onSubmit={onCreate} className="space-y-5 border-b border-border pb-7">
@@ -282,11 +306,11 @@ function PayrollWorkspace({ canManagePayroll, financeRole, employeeRole, staff, 
       <Button type="submit" disabled={busy}><FileCheck2/>{busy ? "A preparar…" : "Criar folha assinada"}</Button>
     </form>}
 
-    {canManagePayroll && <section className="space-y-4"><h3 className="font-semibold">Folhas preparadas</h3>{runs.length === 0 ? <p className="text-sm text-muted-foreground">Ainda não há folhas processadas.</p> : runs.map((run) => <article key={run.id} className="border-b border-border py-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-medium">{monthNames[run.period_month - 1]} de {run.period_year}</p><p className="text-sm text-muted-foreground">Pagamento previsto: {run.scheduled_payment_date} · {statusName(run.status)}</p></div>{run.status === "draft" && <Button size="sm" disabled={busy} onClick={() => onSubmit(run)}>Enviar às Finanças</Button>}</div><PayrollTable items={runEmployees(run.id)}/></article>)}</section>}
+    {canManagePayroll && <section className="space-y-4"><h3 className="font-semibold">Folhas preparadas</h3>{runs.length === 0 ? <p className="text-sm text-muted-foreground">Ainda não há folhas processadas.</p> : runs.map((run) => <article key={run.id} className="border-b border-border py-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-medium">{monthNames[run.period_month - 1]} de {run.period_year}</p><p className="text-sm text-muted-foreground">Pagamento previsto: {run.scheduled_payment_date} · {statusName(run.status)}</p></div><div className="flex gap-2"><Button size="sm" variant="outline" disabled={busy} onClick={() => onSync(run)}><RefreshCw size={14}/>Sincronizar Sheets</Button>{run.status === "draft" && <Button size="sm" disabled={busy} onClick={() => onSubmit(run)}>Enviar às Finanças</Button>}</div></div><PayrollTable items={runEmployees(run.id)}/></article>)}</section>}
 
-    {financeRole && <section className="space-y-4"><div><h3 className="font-semibold">Folhas enviadas para pagamento</h3><p className="mt-1 text-sm text-muted-foreground">Anexe o comprovativo antes de confirmar o pagamento.</p></div>{runs.filter((run) => run.status === "sent_to_finance").length === 0 ? <p className="text-sm text-muted-foreground">Não há folhas pendentes de pagamento.</p> : runs.filter((run) => run.status === "sent_to_finance").map((run) => <article key={run.id} className="space-y-3 border-b border-border py-4"><p className="font-medium">{monthNames[run.period_month - 1]} de {run.period_year} · {money.format(runEmployees(run.id).reduce((total, item) => total + Number(item.net_pay), 0))}</p><PayrollTable items={runEmployees(run.id)}/><label className="block text-sm">Comprovativo de pagamento<input type="file" accept="image/*,application/pdf" onChange={(event) => setProofs((current) => ({ ...current, [run.id]: event.target.files?.[0] ?? null }))} className="form-control mt-1 pt-2"/></label><Button disabled={busy} size="sm" onClick={() => onPay(run)}><Banknote/>Confirmar pagamento</Button></article>)}</section>}
+    {financeRole && <section className="space-y-4"><div><h3 className="font-semibold">Folhas enviadas para pagamento</h3><p className="mt-1 text-sm text-muted-foreground">Anexe o comprovativo antes de confirmar o pagamento.</p></div>{runs.filter((run) => run.status === "sent_to_finance").length === 0 ? <p className="text-sm text-muted-foreground">Não há folhas pendentes de pagamento.</p> : runs.filter((run) => run.status === "sent_to_finance").map((run) => <article key={run.id} className="space-y-3 border-b border-border py-4"><div className="flex flex-wrap items-center justify-between gap-3"><p className="font-medium">{monthNames[run.period_month - 1]} de {run.period_year} · {money.format(runEmployees(run.id).reduce((total, item) => total + Number(item.net_pay), 0))}</p><Button size="sm" variant="outline" disabled={busy} onClick={() => onSync(run)}><RefreshCw size={14}/>Sincronizar Sheets</Button></div><PayrollTable items={runEmployees(run.id)}/><label className="block text-sm">Comprovativo de pagamento<input type="file" accept="image/*,application/pdf" onChange={(event) => setProofs((current) => ({ ...current, [run.id]: event.target.files?.[0] ?? null }))} className="form-control mt-1 pt-2"/></label><Button disabled={busy} size="sm" onClick={() => onPay(run)}><Banknote/>Confirmar pagamento</Button></article>)}</section>}
 
-    {employeeRole && <section className="space-y-4"><div><h3 className="font-semibold">As suas folhas pagas</h3><p className="mt-1 text-sm text-muted-foreground">A confirmação fica registada antes de a folha ser descarregada.</p></div>{items.filter((item) => item.payment_status === "paid").length === 0 ? <p className="text-sm text-muted-foreground">Não há folhas pagas disponíveis.</p> : items.filter((item) => item.payment_status === "paid").map((item) => <article key={item.id} className="flex flex-wrap items-center justify-between gap-4 border-b border-border py-4"><div><p className="font-medium">{monthNames[item.period_month - 1]} de {item.period_year}</p><p className="mt-1 text-sm text-muted-foreground">Líquido: {money.format(Number(item.net_pay))} · INSS: {money.format(Number(item.employee_inss))} · Faltas: {money.format(Number(item.absence_deduction))}</p>{item.employee_confirmed_at && <p className="mt-1 text-xs text-muted-foreground">Recebimento confirmado em {new Date(item.employee_confirmed_at).toLocaleDateString("pt-MZ")} por {item.employee_signature}</p>}</div>{item.employee_confirmed_at ? <Button size="sm" variant="outline" onClick={() => onPrint(item)}><ReceiptText/>Descarregar folha</Button> : <Button size="sm" disabled={busy} onClick={() => onConfirm(item)}><BadgeCheck/>Confirmar recebimento</Button>}</article>)}</section>}
+    {employeeRole && <section className="space-y-4"><div><h3 className="font-semibold">As suas folhas pagas</h3><p className="mt-1 text-sm text-muted-foreground">A confirmação fica registada antes de a folha ser descarregada.</p></div>{items.filter((item) => item.payment_status === "paid").length === 0 ? <p className="text-sm text-muted-foreground">Não há folhas pagas disponíveis.</p> : items.filter((item) => item.payment_status === "paid").map((item) => <article key={item.id} className="flex flex-wrap items-center justify-between gap-4 border-b border-border py-4"><div><p className="font-medium">{monthNames[item.period_month - 1]} de {item.period_year}</p><p className="mt-1 text-sm text-muted-foreground">Líquido: {money.format(Number(item.net_pay))} · INSS: {money.format(Number(item.employee_inss))} · Faltas: {money.format(Number(item.absence_deduction))}</p>{item.employee_confirmed_at && <p className="mt-1 text-xs text-muted-foreground">Recebimento confirmado em {new Date(item.employee_confirmed_at).toLocaleDateString("pt-MZ")} por {item.employee_signature}</p>}</div>{item.employee_confirmed_at ? <Button size="sm" variant="outline" disabled={busy} onClick={() => onPrint(item)}><ReceiptText/>Descarregar folha</Button> : <Button size="sm" disabled={busy} onClick={() => onConfirm(item)}><BadgeCheck/>Confirmar recebimento</Button>}</article>)}</section>}
     <p className="flex items-start gap-2 border-t border-border pt-4 text-xs text-muted-foreground"><LockKeyhole size={14} className="mt-0.5 shrink-0"/>O IRPS, férias, horas extras e indemnizações continuam fora do cálculo até validação das regras aplicáveis.</p>
   </div>;
 }

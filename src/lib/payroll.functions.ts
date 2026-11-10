@@ -92,16 +92,16 @@ async function syncRunToSheets(supabase: AuthenticatedSupabase, userId: string, 
     majorDimension: "ROWS",
     values: [padPayrollSheetRow(partner || hr ? values : values.slice(5))],
   }));
-  if (plan.appends.length) {
-    await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!A:U:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, "POST", {
-      majorDimension: "ROWS",
-      values: plan.appends.map(padPayrollSheetRow),
-    });
-  }
-  if (!existingRowsByItemId.size && !plan.appends.length) {
+  if (!existingRowsByItemId.size) {
     await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!A1:U2?valueInputOption=RAW`, "PUT", {
       majorDimension: "ROWS",
       values: [payrollSheetTitleRow(), payrollSheetHeaders()],
+    });
+  }
+  if (plan.appends.length) {
+    await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!A3:U:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, "POST", {
+      majorDimension: "ROWS",
+      values: plan.appends.map(padPayrollSheetRow),
     });
   }
   if (data.length) {

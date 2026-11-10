@@ -41,7 +41,7 @@ describe("payroll sheet synchronization planning", () => {
   });
 
   it("updates an existing row instead of appending a second copy", () => {
-    const plan = planPayrollSheetWrites([item("item-1")], run, new Map([["item-1", { rowNumber: 3, employeeName: "Funcionário de Teste" }]]), new Map(), false);
+    const plan = planPayrollSheetWrites([item("item-1")], run, new Map([["item-1", { rowNumber: 3 }]]), new Map(), false);
     expect(plan.updates).toHaveLength(1);
     expect(plan.updates[0]?.rowNumber).toBe(3);
     expect(plan.appends).toHaveLength(0);

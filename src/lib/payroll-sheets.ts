@@ -13,7 +13,7 @@ export type PayrollSheetPlan = {
   appends: string[][];
 };
 
-export type ExistingPayrollSheetRow = { rowNumber: number; employeeName: string };
+export type ExistingPayrollSheetRow = { rowNumber: number; employeeName?: string };
 
 const SHEET_WIDTH = 21;
 

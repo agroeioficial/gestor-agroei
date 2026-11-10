@@ -64,11 +64,11 @@ async function syncRunToSheets(supabase: AuthenticatedSupabase, userId: string, 
     return { ok: false as const, message: "Finanças só pode sincronizar folhas já enviadas para pagamento." };
   }
 
-  const { values: rawRows } = await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!A3:U`, "GET") as { values?: string[][] };
-  const existingRowsByItemId = new Map<string, { rowNumber: number; employeeName: string }>();
-  (rawRows ?? []).forEach((row, index) => {
-    const itemId = row[4];
-    if (itemId) existingRowsByItemId.set(itemId, { rowNumber: index + 3, employeeName: row[3] ?? "" });
+  const { values: rawIds } = await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!E3:E`, "GET") as { values?: string[][] };
+  const existingRowsByItemId = new Map<string, { rowNumber: number; employeeName?: string }>();
+  (rawIds ?? []).forEach((row, index) => {
+    const itemId = row[0];
+    if (itemId) existingRowsByItemId.set(itemId, { rowNumber: index + 3 });
   });
   const names = new Map<string, string>();
 
@@ -88,9 +88,9 @@ async function syncRunToSheets(supabase: AuthenticatedSupabase, userId: string, 
   }
 
   const data = plan.updates.map(({ rowNumber, values }) => ({
-    range: `Folhas!A${rowNumber}:U${rowNumber}`,
+    range: partner || hr ? `Folhas!A${rowNumber}:U${rowNumber}` : `Folhas!F${rowNumber}:U${rowNumber}`,
     majorDimension: "ROWS",
-    values: [padPayrollSheetRow(values)],
+    values: [padPayrollSheetRow(partner || hr ? values : values.slice(5))],
   }));
   if (plan.appends.length) {
     await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!A:U:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, "POST", {
@@ -144,8 +144,8 @@ export const syncEmployeeConfirmationToSheets = createServerFn({ method: "POST" 
     }
 
     try {
-  const { values: rawRows } = await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!A3:U`, "GET") as { values?: string[][] };
-      const rowOffset = (rawRows ?? []).findIndex((row) => row[4] === item.id);
+      const { values: rawIds } = await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!E3:E`, "GET") as { values?: string[][] };
+      const rowOffset = (rawIds ?? []).findIndex((row) => row[0] === item.id);
       if (rowOffset < 0) return { ok: false as const, message: "O RH ainda não sincronizou esta folha com a planilha." };
       const rowNumber = rowOffset + 3;
       await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!T${rowNumber}:U${rowNumber}?valueInputOption=RAW`, "PUT", {

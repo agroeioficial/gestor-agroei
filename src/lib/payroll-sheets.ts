@@ -67,7 +67,7 @@ export function planPayrollSheetWrites(
     if (!existing && !canAppend) {
       throw new Error("A folha ainda não existe na planilha. Peça ao RH para sincronizá-la.");
     }
-    if (!employeeName) throw new Error("Não foi possível identificar o funcionário desta folha.");
+    if (!employeeName && !existing) throw new Error("Não foi possível identificar o funcionário desta folha.");
     const values = payrollItemToSheetRow(item, run, employeeName);
     if (existing) {
       updates.push({ rowNumber: existing.rowNumber, values });

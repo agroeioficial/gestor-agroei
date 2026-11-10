@@ -1,8 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 import { createPayslipPdf } from "@/lib/payroll-payslip";
-import { padPayrollSheetRow, planPayrollSheetWrites, payrollSheetHeaders } from "@/lib/payroll-sheets";
+import { padPayrollSheetRow, planPayrollSheetWrites } from "@/lib/payroll-sheets";
 
 const SHEETS_API = "https://connector-gateway.lovable.dev/google_sheets/v4";
 const PAYROLL_SPREADSHEET_ID = "1n1kknheTFX1RtEa57m_nuaBU5qZI3f6y22FkyykpUGw";
@@ -10,9 +12,9 @@ const PAYROLL_SPREADSHEET_ID = "1n1kknheTFX1RtEa57m_nuaBU5qZI3f6y22FkyykpUGw";
 const syncInput = z.object({ runId: z.string().uuid() });
 const payslipInput = z.object({ itemId: z.string().uuid() });
 
-type AuthContext = { supabase: Parameters<typeof requireSupabaseAuth>[0] extends never ? never : any; userId: string };
+type AuthenticatedSupabase = SupabaseClient<Database>;
 
-async function hasRole(supabase: AuthContext["supabase"], userId: string, role: "partner" | "hr" | "finance" | "employee") {
+async function hasRole(supabase: AuthenticatedSupabase, userId: string, role: "partner" | "hr" | "finance" | "employee") {
   const { data, error } = await supabase.rpc("has_role", { _user_id: userId, _role: role });
   if (error) throw new Error("Não foi possível confirmar as permissões da conta.");
   return data === true;
@@ -29,7 +31,7 @@ function sheetsHeaders(): Headers {
   });
 }
 
-async function gatewayRequest(path: string, method: "GET" | "POST", body?: unknown) {
+async function gatewayRequest(path: string, method: "GET" | "POST" | "PUT", body?: unknown) {
   const response = await fetch(`${SHEETS_API}${path}`, {
     method,
     headers: sheetsHeaders(),
@@ -43,14 +45,13 @@ async function gatewayRequest(path: string, method: "GET" | "POST", body?: unkno
   return response.json() as Promise<Record<string, unknown>>;
 }
 
-async function syncRunToSheets(supabase: AuthContext["supabase"], userId: string, runId: string) {
-  const [partner, hr, finance, employee] = await Promise.all([
+async function syncRunToSheets(supabase: AuthenticatedSupabase, userId: string, runId: string) {
+  const [partner, hr, finance] = await Promise.all([
     hasRole(supabase, userId, "partner"),
     hasRole(supabase, userId, "hr"),
     hasRole(supabase, userId, "finance"),
-    hasRole(supabase, userId, "employee"),
   ]);
-  if (!partner && !hr && !finance && !employee) return { ok: false as const, message: "A sua conta não tem acesso à sincronização salarial." };
+  if (!partner && !hr && !finance) return { ok: false as const, message: "A sincronização da folha está disponível apenas para RH, Finanças e Sócios." };
 
   const [{ data: run, error: runError }, { data: items, error: itemsError }] = await Promise.all([
     supabase.from("payroll_runs").select("id, scheduled_payment_date").eq("id", runId).maybeSingle(),
@@ -59,9 +60,12 @@ async function syncRunToSheets(supabase: AuthContext["supabase"], userId: string
   if (runError || itemsError || !run || !items?.length) {
     return { ok: false as const, message: "Não há folhas autorizadas para sincronizar neste período." };
   }
+  if (finance && !partner && !hr && items.some((item) => item.payment_status === "draft")) {
+    return { ok: false as const, message: "Finanças só pode sincronizar folhas já enviadas para pagamento." };
+  }
 
-  const { values: rawRows } = await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!A3:U`, "GET") as { values?: string[][] };
-  const existingRows = rawRows ?? [];
+  const { values: rawIds } = await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!E3:E`, "GET") as { values?: string[][] };
+  const existingItemIds = (rawIds ?? []).map((row) => row[0] ?? "");
   const names = new Map<string, string>();
 
   if (partner || hr) {
@@ -74,13 +78,13 @@ async function syncRunToSheets(supabase: AuthContext["supabase"], userId: string
 
   let plan;
   try {
-    plan = planPayrollSheetWrites(items, run, existingRows, names, partner || hr);
+    plan = planPayrollSheetWrites(items, run, existingItemIds, names, partner || hr);
   } catch (error) {
     return { ok: false as const, message: error instanceof Error ? error.message : "Não foi possível preparar a sincronização." };
   }
 
   const data = plan.updates.map(({ rowNumber, values }) => ({
-    range: `Folhas!A${rowNumber}:U${rowNumber}`,
+    range: `Folhas!F${rowNumber}:U${rowNumber}`,
     majorDimension: "ROWS",
     values: [padPayrollSheetRow(values)],
   }));
@@ -109,6 +113,39 @@ export const syncPayrollToSheets = createServerFn({ method: "POST" })
     } catch (error) {
       console.error("Salary sheet synchronization failed", error);
       return { ok: false as const, message: error instanceof Error ? error.message : "Não foi possível sincronizar a planilha salarial." };
+    }
+  });
+
+export const syncEmployeeConfirmationToSheets = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => payslipInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const isEmployee = await hasRole(context.supabase, context.userId, "employee");
+    if (!isEmployee) return { ok: false as const, message: "Esta confirmação só pode ser sincronizada pela conta do funcionário." };
+
+    const { data: item, error } = await context.supabase.from("payroll_items").select("id, employee_signature, employee_confirmed_at")
+      .eq("id", data.itemId)
+      .eq("employee_id", context.userId)
+      .eq("payment_status", "paid")
+      .not("employee_confirmed_at", "is", null)
+      .maybeSingle();
+    if (error || !item?.employee_signature || !item.employee_confirmed_at) {
+      return { ok: false as const, message: "A confirmação pessoal ainda não está registada." };
+    }
+
+    try {
+      const { values: rawIds } = await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!E3:E`, "GET") as { values?: string[][] };
+      const rowOffset = (rawIds ?? []).findIndex((row) => row[0] === item.id);
+      if (rowOffset < 0) return { ok: false as const, message: "O RH ainda não sincronizou esta folha com a planilha." };
+      const rowNumber = rowOffset + 3;
+      await gatewayRequest(`/spreadsheets/${PAYROLL_SPREADSHEET_ID}/values/Folhas!T${rowNumber}:U${rowNumber}?valueInputOption=RAW`, "PUT", {
+        majorDimension: "ROWS",
+        values: [[item.employee_signature, item.employee_confirmed_at]],
+      });
+      return { ok: true as const, message: "A confirmação também foi atualizada na planilha salarial." };
+    } catch (caught) {
+      console.error("Employee payslip confirmation sync failed", caught);
+      return { ok: false as const, message: "A confirmação foi guardada, mas não foi possível atualizar a planilha." };
     }
   });
 
